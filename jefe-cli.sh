@@ -20,11 +20,11 @@ out() {
 }
 
 set_dotenv(){
-    echo "$1=$2" >> ./jefe/.env
+    echo "$1=$2" >> .jefe/.env
 }
 
 get_dotenv(){
-    echo $( grep "$1" ./jefe/.env | sed -e "s/$1=//g" )
+    echo $( grep "$1" .jefe/.env | sed -e "s/$1=//g" )
 }
 
 load_dotenv(){
@@ -55,7 +55,7 @@ parse_yaml() {
 }
 
 get_yamlenv(){
-    echo $( parse_yaml ./jefe/settings.yaml | grep "^$1_$2" | sed -e "s/$1_$2=//g" | sed -e "s/\"//g")
+    echo $( parse_yaml .jefe/settings.yaml | grep "^$1_$2" | sed -e "s/$1_$2=//g" | sed -e "s/\"//g")
 }
 
 load_settings_env(){
@@ -63,124 +63,13 @@ load_settings_env(){
     user=$( get_yamlenv $1 user)
     group=$( get_yamlenv $1 group)
     host=$( get_yamlenv $1 host)
+    port=$( get_yamlenv $1 port)
     public_dir=$( get_yamlenv $1 public_dir)
     dbname=$( get_yamlenv $1 dbname)
     dbuser=$( get_yamlenv $1 dbuser)
     dbpassword=$( get_yamlenv $1 dbpassword)
     dbhost=$( get_yamlenv $1 dbhost)
-    execute=$( get_yamlenv $1 execute)
-}
-
-version() {
-    echo 0.1
-}
-
-init() {
-
-    # Print logo
-    tput setaf 2;
-    cat ./jefe/logo.txt
-
-    # create every folder needed
-
-    out "Make directory structure." 4
-
-    echo "Creating app directory..."
-    if [[ ! -d "./app" ]]; then
-        mkdir ./app
-        out "done" 2
-    else
-        out "it already exists." 3
-    fi
-
-    echo "Creating database directory..."
-    if [[ ! -d "./database" ]]; then
-        mkdir ./database
-        out "done" 2
-    else
-        out "it already exists." 3
-    fi
-
-    out "Setting configuration files." 4
-
-    echo "Writing new values to .gitigonre..."
-    if [[ ! -f  "./.gitignore" ]]; then
-        cat ./jefe/git.gitignore >> ./.gitignore
-        out "it already exists." 3
-    else
-        while read line
-        do
-            if ! grep -q "$line"  "./.gitignore"; then
-                echo "$line" >> ./.gitignore
-            fi
-        done < ./jefe/git.gitignore
-        out "it already exists." 3
-    fi
-
-    ###############################################################################################
-    # Configure project
-    ###############################################################################################
-    out "Configure project" 4
-
-    # Select type of project language
-    out "Select type of project language" 5
-    out "0) PHP" 5
-    out "1) Ruby" 5
-    echo "Type the option (number) that you want(digit), followed by [ENTER]:"
-    read option
-
-    flag=true
-    while [ $flag = true ]; do
-        echo $option
-        case $option in
-            0)
-                project_type=php
-                # Docker compose var env configuration.
-                docker_env
-                configure_php_project
-                flag=false
-                ;;
-            1)
-                project_type=ruby
-                # Docker compose var env configuration.
-                docker_env
-                configure_ruby_project
-                flag=false
-                ;;
-            *)
-                out "Wrong choice:$option" 1
-                project=""
-                flag=true
-                ;;
-        esac
-    done
-
-    # Config environments.
-    config_environments
-}
-
-up() {
-    cd ./jefe/
-    docker-compose up -d
-    cd ..
-}
-
-stop() {
-    cd ./jefe/
-    docker-compose stop
-    cd ..
-}
-
-down() {
-    cd ./jefe/
-    docker-compose down -v
-    cd ..
-}
-
-bluid() {
-    cd ./jefe/
-    docker-compose build --no-cache
-    cd ..
+    exclude=$( get_yamlenv $1 exclude)
 }
 
 importdb() {
@@ -206,20 +95,10 @@ importdb() {
 
     load_dotenv
     if [[ "$e" == "docker" ]]; then
-        if [[ "$project_type" == "php" ]]; then
-            docker exec -i ${project_name}_db mysql -u ${dbuser} -p"${dbpassword}" ${dbname}  < ./database/${f}
-        fi
-        if [[ "$project_type" == "ruby" ]]; then
-            docker exec -i "${project_name}_db" psql -d $dbname -U $dbuser < ./database/$f
-        fi
+        docker exec -i ${project_name}_db mysql -u ${dbuser} -p"${dbpassword}" ${dbname}  < ./database/${f}
     else
         load_settings_env $e
-        if [[ "$project_type" == "php" ]]; then
-            ssh "${user}@${host} 'mysql -u ${dbuser} -p\"${dbpassword}\" ${dbname} --host=${dbhost} < ./database/${f}'"
-        fi
-        if [[ "$project_type" == "ruby" ]]; then
-            ssh "${user}@${host} 'psql -d $dbname -U $dbuser < ./database/$f'"
-        fi
+        ssh "${user}@${host} 'mysql -u ${dbuser} -p\"${dbpassword}\" ${dbname} --host=${dbhost} < ./database/${f}'"
     fi
 }
 
@@ -246,20 +125,10 @@ dumpdb() {
 
     load_dotenv
     if [[ "$e" == "docker" ]]; then
-        if [[ "$project_type" == "php" ]]; then
-            docker exec ${project_name}_db mysqldump -u ${dbuser} -p"${dbpassword}" ${dbname}  > ./database/${f}
-        fi
-        if [[ "$project_type" == "ruby" ]]; then
-            docker exec "${project_name}_db" pg_dump -U $dbuser $dbname > ./database/${f}
-        fi
+        docker exec ${project_name}_db mysqldump -u ${dbuser} -p"${dbpassword}" ${dbname}  > ./database/${f}
     else
         load_settings_env $e
-        if [[ "$project_type" == "php" ]]; then
-            ssh "${user}@${host} 'mysqldump -u ${dbuser} -p\"${dbpassword}\" ${dbname}  > ./database/${f}'"
-        fi
-        if [[ "$project_type" == "ruby" ]]; then
-            ssh "${user}@${host} 'pg_dump -U $dbuser $dbname > ./database/${f}'"
-        fi
+        ssh "${user}@${host} 'mysqldump -u ${dbuser} -p\"${dbpassword}\" ${dbname}  > ./database/${f}'"
     fi
 }
 
@@ -277,57 +146,12 @@ resetdb() {
         e="docker"
     fi
 
+    load_dotenv
     if [[ "$e" == "docker" ]]; then
-        load_dotenv
-        if [[ "$project_type" == "php" ]]; then
-            docker exec -i ${project_name}_db mysql -u"${dbuser}" -p"${dbpassword}" -e "DROP DATABASE IF EXISTS {dbname}; CREATE DATABASE ${dbname}"
-        fi
-        if [[ "$project_type" == "ruby" ]]; then
-            echo "Not yet implemented"
-        fi
+        docker exec -i ${project_name}_db mysql -u"${dbuser}" -p"${dbpassword}" -e "DROP DATABASE IF EXISTS {dbname}; CREATE DATABASE ${dbname}"
     else
-        cd ./jefe/
-        fab environment:${e},true resetdb
-        cd ..
+        echo "Not yet implemented"
     fi
-}
-
-drop_tables() {
-    while getopts ":e:" option; do
-        case "${option}" in
-            e)
-                e=${OPTARG}
-                ;;
-        esac
-    done
-    shift $((OPTIND-1))
-
-    if [ -z "${e}" ]; then
-        e="docker"
-    fi
-
-    cd ./jefe/
-    fab environment:${e},true drop_tables
-    cd ..
-}
-
-deploy() {
-    while getopts ":e:" option; do
-        case "${option}" in
-            e)
-                e=${OPTARG}
-                ;;
-        esac
-    done
-    shift $((OPTIND-1))
-
-    if [ -z "${e}" ]; then
-        e="docker"
-    fi
-
-    cd ./jefe/
-    fab environment:${e},true deploy
-    cd ..
 }
 
 backup() {
@@ -344,138 +168,16 @@ backup() {
         e="docker"
     fi
 
-    cd ./jefe/
-    fab environment:${e},true backup
-    cd ..
-}
-
-execute() {
-    while getopts ":e:" option; do
-        case "${option}" in
-            e)
-                e=${OPTARG}
-                ;;
-        esac
-    done
-    shift $((OPTIND-1))
-
-    if [ -z "${e}" ]; then
-        e="docker"
-    fi
-
-    cd ./jefe/
-    fab environment:${e},true execute
-    cd ..
-}
-
-ps() {
-    docker ps
-}
-
-it() {
-    while getopts ":c:" option; do
-        case "${option}" in
-            c)
-                c=${OPTARG}
-                ;;
-        esac
-    done
-    shift $((OPTIND-1))
-
-    if [ -z "${c}" ]; then
-        c="docker-php_php"
-    fi
-
-    cd ./jefe/
-    fab it:${c}
-    cd ..
-}
-
-logs() {
-    while getopts ":c:" option; do
-        case "${option}" in
-            c)
-                c=${OPTARG}
-                ;;
-        esac
-    done
-    shift $((OPTIND-1))
-
-    if [ -z "${c}" ]; then
-        c="docker-php_php"
-    fi
-
-    cd ./jefe/
-    fab logs:${c}
-    cd ..
-}
-
-# configure php project
-configure_php_project() {
-    flag=true
-    while [ $flag = true ]; do
-        out "Select project:" 5
-        out "0) Default" 5
-        out "1) CakePHP2.x" 5
-        out "2) CakePHP3.x" 5
-        out "3) Symfony" 5
-        out "4) Laravel" 5
-        out "5) Drupal" 5
-        out "6) Prestashop" 5
-        echo "Type the option (number) from the project that you want(digit), followed by [ENTER]:"
-        read option
-        case $option in
-            0)
-                project="default"
-                flag=false
-                ;;
-            1)
-                project="cakephp2.x"
-                flag=false
-                ;;
-            2)
-                project="cakephp"
-                flag=false
-                ;;
-            3)
-                project="symfony"
-                flag=false
-                ;;
-            4)
-                project="laravel"
-                flag=false
-                ;;
-            5)
-                project="drupal"
-                flag=false
-                ;;
-            6)
-                project="prestashop"
-                flag=false
-                ;;
-            *)
-                out "Wrong choice:$option" 1
-                project=""
-                flag=true
-                ;;
-        esac
-    done
-    cp ./jefe/nginx/vhosts/$project.conf ./jefe/nginx/default.conf
-}
-
-# configure ruby project
-configure_ruby_project() {
-    load_dotenv
-    cp ./jefe/postinstall.sh ./$project_root/postinstall.sh
+    echo "Not yet implemented"
 }
 
 # Docker compose var env configuration.
 docker_env() {
     out "Docker compose var env configuration." 4
-    #     if [[ ! -f "./jefe/.env" ]]; then
-    #         cp ./jefe/default.env ./jefe/.env
+    #     if [[ ! -f ".jefe/.env" ]]; then
+    #         cp .jefe/default.env .jefe/.env
     #     fi
-    echo "" > ./jefe/.env
+    echo "" > .jefe/.env
     set_dotenv PROJECT_TYPE $project_type
     out "Write project name (default docker_$project_type):" 5
     read option
@@ -512,37 +214,6 @@ docker_env() {
     else
         set_dotenv DB_PASSWORD $option
     fi
-}
-
-# Config environments.
-config_environments() {
-    out "Config environments.." 4
-    if [[ ! -f "./jefe/.settings.yaml" ]]; then
-        cp ./jefe/default.settings.yaml ./jefe/settings.yaml
-    fi
-    out "Select editor to open environment settings file" 5
-    out "0) Vi" 5
-    out "1) Nano" 5
-    echo "Type the option (number) from the editor that you want, followed by [ENTER]:"
-    read option
-    case $option in
-        0)
-            vi ./jefe/settings.yaml
-            ;;
-        1)
-            nano ./jefe/settings.yaml
-            ;;
-        *)
-            vi ./jefe/settings.yaml
-            ;;
-    esac
-}
-
-
-help() {
-    cd ./jefe/
-    fab --list
-    cd ..
 }
 
 # call arguments verbatim:
