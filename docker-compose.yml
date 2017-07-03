@@ -10,9 +10,7 @@ services:
         ports:
             - "80:80"
         volumes:
-            - "./${PROJECT_ROOT}/themes:/var/www/html/wp-content/themes"
-            - "./${PROJECT_ROOT}/plugins:/var/www/html/wp-content/plugins"
-            - "./${PROJECT_ROOT}/uploads:/var/www/html/wp-content/uploads"
+            - "./${PROJECT_ROOT}:/var/www/html/wp-content"
         environment:
             WORDPRESS_DB_HOST: db:3306
             WORDPRESS_DB_PASSWORD: "${DB_PASSWORD}"
