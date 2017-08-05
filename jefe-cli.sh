@@ -216,5 +216,42 @@ docker_env() {
     fi
 }
 
+deploy() {
+    while getopts ":e:t:" option; do
+        case "${option}" in
+            e)
+                e=${OPTARG}
+                ;;
+            t)
+                t=${OPTARG}
+                ;;
+        esac
+    done
+    shift $((OPTIND-1))
+
+    if [ -z "${t}" ]; then
+        t="false"
+    fi
+
+    load_dotenv
+    load_settings_env $e
+    excludes=$( echo $exclude | sed -e "s/;/ --exclude=/g" )
+    if [ "${t}" == "true" ]; then
+        set -x #echo on
+        rsync --dry-run -az --force --delete --progress --exclude=$excludes -e "ssh -p${port}" "$project_root/themes/." "${user}@${host}:$public_dir/themes"
+        rsync --dry-run -az --force --delete --progress --exclude=$excludes -e "ssh -p${port}" "$project_root/plugins/." "${user}@${host}:$public_dir/plugins"
+        rsync --dry-run -az --force --delete --progress --exclude=$excludes -e "ssh -p${port}" "$project_root/languages/." "${user}@${host}:$public_dir/languages"
+    else
+        set -x #echo on
+        rsync -az --force --delete --progress --exclude=$excludes -e "ssh -p$port" "$project_root/themes/." "${user}@${host}:$public_dir/themes"
+        rsync -az --force --delete --progress --exclude=$excludes -e "ssh -p$port" "$project_root/plugins/." "${user}@${host}:$public_dir/plugins"
+        rsync -az --force --delete --progress --exclude=$excludes -e "ssh -p$port" "$project_root/languages/." "${user}@${host}:$public_dir/languages"
+    fi
+}
+
+docker_version() {
+    echo "0.2"
+}
+
 # call arguments verbatim:
 $@
